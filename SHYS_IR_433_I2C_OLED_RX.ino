@@ -14,10 +14,18 @@
 int IR_RECV_PIN = 7;
 
 // Display
+// Ist überhaupt ein Display angeschlossen? 
+// (Sonst erfolgt Ausgabe nur über Seriellen Monitor)
 boolean useDisplay = true;
-#define OLED_I2C_ADDRESS 0x3C
-long displayTimeout = 60000; 
 
+// Sollte das Display nicht erkannt werden, sucht bei google mal nach i2c scanner. 
+// Mit dem darüber gefundenen Sketch kann man die Adresse des Displays ermitteln. 
+// In der Regel sollte das OLED aber mit 0x3C funktionieren. 
+#define OLED_I2C_ADDRESS 0x3C   
+
+// Um Detail-Infos zum IR-Signal im Seriellen Monitor zu erhalten, 
+// muss dieser Parameter auf true stehen. Ist dies nicht gewünscht auf false.
+boolean detailIrInfo = false;
 /* ***********************************
  *   CONFIG - ENDE
  *********************************** */
@@ -65,6 +73,7 @@ void loop() {
     unsigned long value = mySwitch.getReceivedValue();
     Serial.println(value);
     
+
     if(useDisplay){
       oled.setCursor(0,4);
       oled.print(F("433Mhz Code: "));
@@ -79,14 +88,21 @@ void loop() {
   // Check for IR Signal
   if (irrecv.decode(&results)) {
     Serial.println(results.value, HEX);
-    dump(&results);
+    
+    if(detailIrInfo){
+      dump(&results);
+    }
+    
     irrecv.resume();
 
+    char hexString[16];
+    oneULong(hexString, results.value);
+    
     if(useDisplay){
       oled.setCursor(0,4);
       oled.print(F("IR Code: "));
       oled.setCursor(0,6);
-      oled.print(results.value);
+      oled.print(hexString);
       oled.print("                       ");
     }
   }
@@ -212,6 +228,23 @@ void dump(decode_results *results) {
 
 
 
+// HEX Helper
+
+void oneNibble(char*& store, byte val) {
+  val &= 0xF;
+  *store++ = (val < 10 ? '0' : 'A' - 10) + val;
+}
+void oneByte(char*& store, byte val) {
+  oneNibble(store, val >> 4);
+  oneNibble(store, val);
+}
+void oneULong(char* store, unsigned long val) {
+  oneByte(store, val >> 24);
+  oneByte(store, val >> 16);
+  oneByte(store, val >> 8);
+  oneByte(store, val);
+  *store = 0;
+}
 
 
 
